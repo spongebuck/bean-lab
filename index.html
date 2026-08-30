@@ -6,7 +6,11 @@
     <title>Saul's Bean Lab</title>
     <link rel="stylesheet" href="style.css" />
     <style>
-      .canvas-wrap canvas { width: 100%; max-width: none; max-height: none; }
+      .canvas-wrap { display: block; }
+      .canvas-wrap.is-panning { cursor: grabbing; user-select: none; }
+      .canvas-wrap:has(canvas[style*="width"]) { cursor: grab; }
+      .canvas-stage { min-width: 100%; min-height: 100%; display: grid; place-items: center; }
+      .canvas-wrap canvas { max-width: none; max-height: none; }
       .zoom-controls span { min-width: 40px; text-align: center; cursor: pointer; }
       /* The blog's three radii: small controls, grouped controls, and media. */
       .upload-button, .primary, .secondary, .zoom-controls button,
@@ -76,7 +80,7 @@
 
         <section class="pattern-area">
           <div class="pattern-header"><div><p class="eyebrow">READY TO MAKE</p><h2 id="patternTitle">我的拼豆图纸</h2></div><div class="zoom-controls"><button id="zoomOut" aria-label="缩小">−</button><span id="zoomPercent">100%</span><button id="zoomIn" aria-label="放大">+</button></div></div>
-          <div class="canvas-wrap"><canvas id="patternCanvas" width="800" height="800"></canvas></div>
+          <div class="canvas-wrap"><div class="canvas-stage"><canvas id="patternCanvas" width="800" height="800"></canvas></div></div>
         </section>
 
         <aside class="materials">
