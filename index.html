@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Saul's Bean Lab</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      .canvas-wrap { display: block; }
+      .canvas-wrap.is-panning { cursor: grabbing; user-select: none; }
+      .canvas-wrap:has(canvas[style*="width"]) { cursor: grab; }
+      .canvas-stage { min-width: 100%; min-height: 100%; display: grid; place-items: center; }
+      .canvas-wrap canvas { max-width: none; max-height: none; }
+      .zoom-controls span { min-width: 40px; text-align: center; cursor: pointer; }
+      /* The blog's three radii: small controls, grouped controls, and media. */
+      .upload-button, .primary, .secondary, .zoom-controls button,
+      .dimension-row input, .source-preview img { border-radius: 8px; }
+      .size-choice { overflow: hidden; border-radius: 8px; }
+      .size-option, .size-option:last-child { border-radius: 0; }
+      .canvas-wrap { border-radius: 24px; }
+      .hero-art { border-radius: 24px; }
+      .board-estimate { border-radius: 12px; }
+      .bead-total { border-radius: 8px; }
+      .toast { border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#">S<span class="logo-mid">aul's Bean La</span>b</a>
+      <p>Pixel patterns for things worth making.</p>
+    </header>
+
+    <main>
+      <section id="emptyState" class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">SAUL'S BEAN LAB / 01</p>
+          <h1>Turn an image into<br />something you can make.</h1>
+          <p class="intro">上传图片，设置尺寸与颜色数量，然后把它变成一份可以真正照着完成的拼豆图纸。</p>
+          <label class="upload-button" for="fileInput">Choose an image <span>→</span></label>
+          <input id="fileInput" type="file" accept="image/*" hidden />
+          <p class="hint">支持 JPG、PNG、WEBP · 图片只在你的浏览器中处理</p>
+        </div>
+        <div id="dropZone" class="hero-art" role="button" tabindex="0" aria-label="上传图片">
+          <div class="checker-art"><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="bead bead-coral"></div><div class="bead bead-yellow"></div><div class="bead bead-blue"></div><div class="bead bead-green"></div>
+          <p>Drop an image here</p>
+        </div>
+      </section>
+
+      <section id="workspace" class="workspace hidden">
+        <aside class="controls">
+          <div class="panel-title"><div><p class="eyebrow">YOUR PATTERN</p><h2>图纸设置</h2></div><button id="newImage" class="text-button">换张图片</button></div>
+
+          <div class="source-preview"><img id="sourcePreview" alt="原图预览" /><div><strong id="fileName">图片</strong><button id="cropButton" class="text-button">查看适配方式</button></div></div>
+
+          <fieldset>
+            <legend>图纸大小 <span>预设或自定义</span></legend>
+            <div class="size-choice">
+              <button class="size-option selected" data-size="small"><b>小</b><span>最长边 30 格</span></button>
+              <button class="size-option" data-size="medium"><b>中</b><span>最长边 50 格</span></button>
+              <button class="size-option" data-size="large"><b>大</b><span>最长边 80 格</span></button>
+            </div>
+            <div class="dimension-row"><label>宽 <input id="gridWidth" type="number" min="5" max="500" value="30" /></label><span>×</span><label>高 <input id="gridHeight" type="number" min="5" max="500" value="30" /></label><button id="lockRatio" class="lock" aria-label="锁定比例" title="锁定比例">⌁</button></div>
+            <p class="field-hint">三个尺寸只是建议。也可直接输入尺寸（最大 500 格）；图片会完整保留并自动留出安全边距。成品约 <strong id="physicalSize">15 × 15 cm</strong>（按 5 mm 拼豆计算）</p>
+          </fieldset>
+
+          <fieldset>
+            <legend>颜色数量 <span id="colorValue">16 色</span></legend>
+            <input id="colorCount" class="range" type="range" min="4" max="36" step="2" value="16" />
+            <div class="range-labels"><span>简洁</span><span>细腻</span></div>
+          </fieldset>
+
+          <fieldset>
+            <legend>显示方式</legend>
+            <div class="toggle-row"><span>网格线</span><input id="gridLines" type="checkbox" checked /></div>
+            <div class="toggle-row"><span>颜色编号</span><input id="numbers" type="checkbox" checked /></div>
+          </fieldset>
+          <button id="generate" class="primary">生成图纸 <span>→</span></button>
+        </aside>
+
+        <section class="pattern-area">
+          <div class="pattern-header"><div><p class="eyebrow">READY TO MAKE</p><h2 id="patternTitle">我的拼豆图纸</h2></div><div class="zoom-controls"><button id="zoomOut" aria-label="缩小">−</button><span id="zoomPercent">100%</span><button id="zoomIn" aria-label="放大">+</button></div></div>
+          <div class="canvas-wrap"><div class="canvas-stage"><canvas id="patternCanvas" width="800" height="800"></canvas></div></div>
+        </section>
+
+        <aside class="materials">
+          <div class="panel-title"><div><p class="eyebrow">MATERIALS</p><h2>材料清单</h2></div><span id="totalBeads" class="bead-total">0 颗</span></div>
+          <p class="materials-intro">按照编号放豆子，每放完一格就在图纸上划掉它。</p>
+          <div class="board-estimate"><span>拼豆板估算</span><strong id="boardEstimate">—</strong><small>按常见 29 × 29 格拼豆板</small></div>
+          <ol id="paletteList" class="palette-list"></ol>
+          <div class="action-stack"><button id="downloadPng" class="primary">下载图纸 PNG <span>↓</span></button><button id="printPattern" class="secondary">打印图纸</button></div>
+        </aside>
+      </section>
+    </main>
+    <footer><span>SAUL'S BEAN LAB</span><span>Made for making things slowly.</span><a href="https://imsaul.lol" target="_blank" rel="noreferrer">imsaul.lol ↗</a></footer>
+    <div id="toast" class="toast" role="status"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
