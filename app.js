@@ -40,6 +40,7 @@ const PAPER = '#faf9f6';
 const PANEL = '#e9e7e6';
 const MUTED = '#5d5751';
 const BOARD_LINE = '#cf5a3c';
+const EMPTY_CELL = '#efede8';
 const FONT_MONO = '"Anthropic Mono", "SFMono-Regular", ui-monospace, Menlo, monospace';
 const FONT_SANS = '"Anthropic Sans", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif';
 
@@ -957,7 +958,8 @@ function drawViewer() {
   ctx.shadowColor = 'rgba(25,24,21,0.1)';
   ctx.shadowBlur = 14;
   ctx.shadowOffsetY = 2;
-  ctx.fillStyle = beads ? '#f3f0ea' : '#ffffff';
+  // Empty cells are a faint warm grey, so white beads read as beads, not as gaps.
+  ctx.fillStyle = beads ? '#f3f0ea' : EMPTY_CELL;
   ctx.fillRect(ox, oy, p.width * s, p.height * s);
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
@@ -1472,41 +1474,67 @@ function showLanding() {
 // Ready-made patterns (data in presets.js)
 // ---------------------------------------------------------------------------
 
-const PRESETS = (window.BEAD_PRESETS?.collections || []).flatMap((collection) =>
-  collection.items.map((item) => ({
-    ...item,
-    collection: collection.name,
-    palette: window.BEAD_PRESETS.palette,
-    width: item.rows[0].length,
-    height: item.rows.length,
-    beads: item.rows.join('').replace(/\./g, '').length,
-    colors: new Set(item.rows.join('').replace(/\./g, '')).size,
-  })),
-);
+/** Collections from presets.js, with each item's derived numbers filled in. */
+const COLLECTIONS = (window.BEAD_PRESETS?.collections || []).map((collection) => {
+  const set = { ...collection };
+  set.items = collection.items.map((item) => {
+    const preset = { ...item, collection: set };
+    if (set.kind === 'pixel') {
+      const cells = item.rows.join('').replace(/\./g, '');
+      Object.assign(preset, { width: item.rows[0].length, height: item.rows.length, beads: cells.length, colors: new Set(cells).size });
+    } else {
+      preset.src = `${set.base}${item.id}.png`;
+    }
+    return preset;
+  });
+  return set;
+});
+const findPreset = (id) => COLLECTIONS.flatMap((c) => c.items).find((p) => p.id === id);
 
-/** The preset drawn at `scale` px per cell; '.' stays transparent. */
+/** A pixel preset drawn at `scale` px per cell; '.' stays transparent. */
 function presetCanvas(preset, scale = 1) {
+  const { palette } = preset.collection;
   const canvas = makeCanvas(preset.width * scale, preset.height * scale);
   const ctx = canvas.getContext('2d');
   preset.rows.forEach((row, y) => {
     [...row].forEach((ch, x) => {
-      if (!preset.palette[ch]) return;
-      ctx.fillStyle = preset.palette[ch];
+      if (!palette[ch]) return;
+      ctx.fillStyle = palette[ch];
       ctx.fillRect(x * scale, y * scale, scale, scale);
     });
   });
   return canvas;
 }
 
-function openPreset(preset) {
-  // Show the drawing as designed: never fewer colour slots than it uses.
-  if (state.settings.colors < preset.colors) {
-    state.settings.colors = preset.colors;
+async function openPreset(preset) {
+  const set = preset.collection;
+  closeCollection();
+  if (set.kind === 'pixel') {
+    // Show the drawing as designed: never fewer colour slots than it uses.
+    if (state.settings.colors < preset.colors) {
+      state.settings.colors = preset.colors;
+      saveSettings();
+      syncControls();
+    }
+    const title = `${set.name} · ${preset.name}`;
+    useImage(presetCanvas(preset), `${title}.png`, title, { pixelArt: true, size: [preset.width, preset.height] });
+    return;
+  }
+  try {
+    const img = await decodeImage(preset.src);
+    // Start at the recommended width, in boards of whatever size the user's boards are.
+    const width = preset.boards * state.settings.boardSize;
+    const height = Math.round((width * img.naturalHeight) / img.naturalWidth);
+    Object.assign(state.settings, set.settings || {});
     saveSettings();
     syncControls();
+    useImage(img, `${preset.en}.png`, preset.name, { size: [width, height] });
+  } catch {
+    // A page opened straight from disk may not read pictures from disk into a canvas.
+    toast(location.protocol === 'file:'
+      ? '直接打开本地文件时，浏览器不让读取素材图。请用网站版，或在项目文件夹里运行 python3 -m http.server。'
+      : '素材图没加载出来，稍后再试一次');
   }
-  const title = `${preset.collection} · ${preset.name}`;
-  useImage(presetCanvas(preset), `${title}.png`, title, { pixelArt: true, size: [preset.width, preset.height] });
 }
 
 function downloadPreset(preset) {
@@ -1515,30 +1543,115 @@ function downloadPreset(preset) {
   }, 'image/png');
 }
 
-function renderPresets() {
-  const grid = $('#presetGrid');
-  if (!PRESETS.length) {
+function presetCard(preset) {
+  const set = preset.collection;
+  const pixel = set.kind === 'pixel';
+  const item = document.createElement('li');
+  item.className = `preset-card${pixel ? '' : ' is-dark'}`;
+  const meta = pixel
+    ? `${preset.width}&nbsp;×&nbsp;${preset.height} · ${fmt(preset.beads)}&nbsp;颗`
+    : `${preset.year} · 建议&nbsp;${preset.boards}&nbsp;块板宽`;
+  item.innerHTML = `
+    <button class="preset-open" type="button" aria-label="打开 ${escapeHtml(preset.name)}"${preset.en ? ` title="${escapeHtml(preset.en)}"` : ''}>
+      <span class="preset-art"></span>
+      <span class="preset-meta"><b>${escapeHtml(preset.name)}</b><span>${meta}</span></span>
+    </button>
+    ${pixel ? `<button class="preset-download" type="button" aria-label="下载 ${escapeHtml(preset.name)} PNG"><span>PNG </span>↓</button>` : ''}`;
+  const art = $('.preset-art', item);
+  if (pixel) {
+    // One scale across the set, so every Clawd is the same size.
+    const widest = Math.max(...set.items.map((p) => p.width));
+    const canvas = presetCanvas(preset);
+    canvas.style.width = `${(preset.width / widest) * 76}%`;
+    art.append(canvas);
+    $('.preset-download', item).addEventListener('click', () => downloadPreset(preset));
+  } else {
+    const img = new Image();
+    img.src = preset.src;
+    img.alt = preset.en || preset.name;
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    art.append(img);
+  }
+  $('.preset-open', item).addEventListener('click', () => openPreset(preset));
+  return item;
+}
+
+function renderCollections() {
+  if (!COLLECTIONS.length) {
     $('#gallery').classList.add('hidden');
     return;
   }
-  // One scale for every card, so Clawd is the same size in all of them.
-  const widest = Math.max(...PRESETS.map((p) => p.width));
-  grid.replaceChildren(...PRESETS.map((preset) => {
+  $('#collectionGrid').replaceChildren(...COLLECTIONS.map((set) => {
     const item = document.createElement('li');
-    item.className = 'preset-card';
     item.innerHTML = `
-      <button class="preset-open" type="button" aria-label="打开 ${escapeHtml(preset.collection)} ${escapeHtml(preset.name)}">
-        <span class="preset-art"></span>
-        <span class="preset-meta"><b>${escapeHtml(preset.name)}</b><span>${preset.width}&nbsp;×&nbsp;${preset.height} · ${fmt(preset.beads)}&nbsp;颗</span></span>
-      </button>
-      <button class="preset-download" type="button" aria-label="下载 ${escapeHtml(preset.name)} PNG"><span>PNG </span>↓</button>`;
-    const art = presetCanvas(preset);
-    art.style.width = `${(preset.width / widest) * 76}%`;
-    $('.preset-art', item).append(art);
-    $('.preset-open', item).addEventListener('click', () => openPreset(preset));
-    $('.preset-download', item).addEventListener('click', () => downloadPreset(preset));
+      <button class="collection-card${set.kind === 'image' ? ' is-dark' : ''}" type="button">
+        <span class="collection-cover"></span>
+        <span class="collection-meta">
+          <span><b>${escapeHtml(set.name)}</b><small>${escapeHtml(set.tagline)}</small></span>
+          <span class="collection-count">${set.items.length} 张</span>
+        </span>
+      </button>`;
+    const cover = $('.collection-cover', item);
+    const picks = (set.cover || []).map(findPreset).filter(Boolean);
+    if (set.kind === 'pixel') {
+      const total = picks.reduce((sum, p) => sum + p.width, 0);
+      for (const p of picks) {
+        const canvas = presetCanvas(p);
+        canvas.style.width = `${(p.width / total) * 80}%`;
+        cover.append(canvas);
+      }
+    } else {
+      for (const p of picks) {
+        const img = new Image();
+        img.src = p.src;
+        img.alt = '';
+        img.loading = 'lazy';
+        cover.append(img);
+      }
+    }
+    $('button', item).addEventListener('click', () => openCollection(set.id));
     return item;
   }));
+}
+
+const sheet = $('#collectionSheet');
+
+function openCollection(id, { updateHash = true } = {}) {
+  const set = COLLECTIONS.find((c) => c.id === id);
+  if (!set) return;
+  $('#sheetEyebrow').textContent = `READY-MADE / ${set.name.toUpperCase()} · ${set.items.length}`;
+  $('#sheetTitle').textContent = `${set.name} · ${set.tagline}`;
+  $('#sheetNote').textContent = set.note || '';
+  $('#sheetFine').textContent = set.fineprint || '';
+  const grid = $('#sheetGrid');
+  grid.classList.toggle('is-wide', set.kind === 'image');
+  grid.replaceChildren(...set.items.map(presetCard));
+  if (!sheet.open) sheet.showModal();
+  $('.sheet-body', sheet).scrollTop = 0;
+  document.body.classList.add('sheet-open');
+  // The address points at the open set, so it can be shared: …/#clawd
+  if (updateHash) history.replaceState(null, '', `#${set.id}`);
+}
+
+function onSheetClosed() {
+  if (sheet.open) return; // a late 'close' from before the sheet was reopened
+  document.body.classList.remove('sheet-open');
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+}
+
+function closeCollection() {
+  if (sheet.open) sheet.close();
+  onSheetClosed(); // don't wait for the async 'close' event
+}
+
+function bindCollections() {
+  $('.sheet-close', sheet).addEventListener('click', closeCollection);
+  // A click that lands on the <dialog> itself, not its content, is a click on the backdrop.
+  sheet.addEventListener('click', (e) => { if (e.target === sheet) closeCollection(); });
+  sheet.addEventListener('close', onSheetClosed); // Esc closes the dialog natively
+  const fromHash = decodeURIComponent(location.hash.slice(1));
+  if (COLLECTIONS.some((c) => c.id === fromHash)) openCollection(fromHash, { updateHash: false });
 }
 
 // ---------------------------------------------------------------------------
@@ -1606,7 +1719,7 @@ function renderSheet() {
   const gx = Math.round((width - ruler - gridW) / 2 + ruler);
   const gy = M + headerH + ruler;
   const styles = colorStyles(p);
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = EMPTY_CELL;
   ctx.fillRect(gx, gy, gridW, gridH);
   paintCells(ctx, p, {
     ox: gx, oy: gy, s: cs, c0: 0, c1: cols, r0: 0, r1: rows,
@@ -1717,7 +1830,7 @@ function buildPrintPages() {
   const ovPx = Math.max(2, Math.round(ovMm * 8));
   const overview = makeCanvas(p.width * ovPx, p.height * ovPx);
   const octx = overview.getContext('2d');
-  octx.fillStyle = '#ffffff';
+  octx.fillStyle = EMPTY_CELL;
   octx.fillRect(0, 0, overview.width, overview.height);
   paintCells(octx, p, { ox: 0, oy: 0, s: ovPx, c0: 0, c1: p.width, r0: 0, r1: p.height, styles, grid: ovPx >= 6, boards: B });
   octx.font = `700 ${Math.max(14, Math.min(B * ovPx * 0.28, 64))}px ${FONT_SANS}`;
@@ -1761,7 +1874,7 @@ function buildPrintPages() {
       ctx.fillStyle = '#efebe5';
       ctx.fillRect(ruler, ruler, B * cellPx, B * cellPx);
       const ox = ruler - c0 * cellPx, oy = ruler - r0 * cellPx;
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = '#f6f4f0';
       ctx.fillRect(ruler, ruler, (c1 - c0) * cellPx, (r1 - r0) * cellPx);
       paintCells(ctx, p, { ox, oy, s: cellPx, c0, c1, r0, r1, styles, grid: true, codes: true });
       ctx.strokeStyle = INK;
@@ -1893,7 +2006,7 @@ function animateHero(now) {
 }
 
 function initHero() {
-  const preset = PRESETS.find((p) => p.id === 'clawd-hello') || PRESETS[0];
+  const preset = findPreset('clawd-hello');
   if (!preset) return;
   const source = toWorkingCanvas(presetCanvas(preset));
   source.pixelArt = true;
@@ -2123,7 +2236,8 @@ function bindGlobal() {
 // ---------------------------------------------------------------------------
 
 populateBrands();
-renderPresets();
+renderCollections();
+bindCollections();
 syncControls();
 $('#hoverInfo').textContent = HOVER_HINT;
 bindControls();

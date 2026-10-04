@@ -1,29 +1,40 @@
-// Ready-made patterns. Each row is one row of cells: '.' is empty, every other letter
-// is a key into `palette`. Edit the rows directly; the gallery, the PNG download and
-// the bead pattern all come from them.
+// Ready-made patterns, grouped into collections. The landing page shows one card per
+// collection; opening it lists the items.
 //
-// Clawd is Anthropic's Claude Code mascot. These are fan-made pixel versions, drawn
-// to fit one 29 x 29 pegboard each. Colours are MARD beads, except the body, which
-// is Claude orange (#d97757) and lands on MARD F23.
+// Two kinds of item:
+// - pixel: `rows` of letters, one letter per cell ('.' is empty), keyed into the
+//   collection's `palette`. Opened cell for cell. Edit the letters to edit the art.
+// - image: a picture in `base` + `<id>.png`, converted like an upload. `boards` is the
+//   recommended width in pegboards; the user can still pick any size.
 window.BEAD_PRESETS = {
-  palette: {
-    b: '#50a9f0', // C6
-    c: '#9d5b3e', // G7
-    d: '#474747', // H5
-    g: '#fdad49', // A6
-    k: '#2c2c2c', // H6
-    l: '#cecdd5', // H11
-    m: '#868686', // H4
-    n: '#7cee9d', // B3
-    o: '#d97757', // Claude orange → F23
-    p: '#ffa9ad', // F14
-    r: '#e54b4f', // F25
-    w: '#ffffff', // H2
-  },
   collections: [
     {
       id: 'clawd',
+      kind: 'pixel',
       name: 'Clawd',
+      tagline: 'Claude Code 里的小家伙',
+      note: '每一张都放得进一块 29 × 29 的拼豆板，点开就能拼，也可以存成 PNG 当表情包。',
+      fineprint: 'Clawd 是 Anthropic 为 Claude Code 设计的吉祥物。这里是爱好者画的像素版，非官方。',
+      cover: ['clawd-hello', 'clawd-coding', 'clawd-fish'],
+      // MARD beads, except the body: Claude orange (#d97757), which lands on MARD F23.
+      palette: {
+        b: '#50a9f0', // C6
+        c: '#9d5b3e', // G7
+        d: '#474747', // H5
+        e: '#156f40', // B12
+        f: '#7786e5', // D24
+        g: '#fdad49', // A6
+        h: '#c2f0cc', // B20
+        k: '#2c2c2c', // H6
+        l: '#cecdd5', // H11
+        m: '#868686', // H4
+        n: '#7cee9d', // B3
+        o: '#d97757', // Claude orange → F23
+        p: '#ffa9ad', // F14
+        r: '#e54b4f', // F25
+        w: '#ffffff', // H2
+        y: '#ffe953', // A4
+      },
       items: [
         { id: 'clawd-classic', name: '经典', rows: [
           '...oooooooooooooo...',
@@ -171,6 +182,179 @@ window.BEAD_PRESETS = {
           '...oo.oo....oo.oo.........',
           '...oo.oo....oo.oo.........',
         ] },
+        { id: 'clawd-fish', name: '摸鱼', rows: [
+          '...oooooooooooooo.......ff...',
+          '...oooooooooooooo.....fffff.f',
+          '...oookkooookkooo...fffkfffff',
+          'oooookookookookooooffffffffff',
+          'oooooooooooooooooooofffffff.f',
+          '...oppooooooooppo.....fff....',
+          '...oooooooooooooo............',
+          '...oooooooooooooo............',
+          '...oo.oo....oo.oo............',
+          '...oo.oo....oo.oo............',
+          '...oo.oo....oo.oo............',
+        ] },
+        { id: 'clawd-watermelon', name: '吃瓜', rows: [
+          '...oooooooooooooo..rrrrrrrrr.',
+          '...oooooooooooooo..errkrrrkre',
+          '...oookkooookkooo...hrrrrkrh.',
+          'oooookookookookoooooehrrrrhe.',
+          'oooooooooooooooooooo.ehhhhe..',
+          '...oppooooooooppo.....eeee...',
+          '...oooooooooooooo............',
+          '...oooooooooooooo............',
+          '...oo.oo....oo.oo............',
+          '...oo.oo....oo.oo............',
+          '...oo.oo....oo.oo............',
+        ] },
+        { id: 'clawd-cool', name: '墨镜', rows: [
+          '....................g.',
+          '...................ggg',
+          '...oooooooooooooo...g.',
+          '...oooooooooooooo.....',
+          '...okkkkkkkkkkkkkk....',
+          'oooookwkkoookwkkoooo..',
+          'oooookkkkoookkkkoooo..',
+          '...oooooooooooooo.....',
+          '...oooooooooooooo.....',
+          '...oooooooooooooo.....',
+          '...oo.oo....oo.oo.....',
+          '...oo.oo....oo.oo.....',
+          '...oo.oo....oo.oo.....',
+        ] },
+        { id: 'clawd-question', name: '疑问', rows: [
+          '...................kkkk.',
+          '..................kk..kk',
+          '......................kk',
+          '.....................kk.',
+          '....................kk..',
+          '....................kk..',
+          '........................',
+          '....................kk..',
+          '...oooooooooooooo.......',
+          '...ookkooookkoooo.......',
+          '...ookkooookkoooo.......',
+          'oooooooooooooooooooo....',
+          'oooooooooooooooooooo....',
+          '...oooooooooooooo.......',
+          '...oooooooooooooo.......',
+          '...oooooooooooooo.......',
+          '...oo.oo....oo.oo.......',
+          '...oo.oo....oo.oo.......',
+          '...oo.oo....oo.oo.......',
+        ] },
+        { id: 'clawd-crying', name: '哭哭', rows: [
+          '...oooooooooooooo...',
+          '...oooooooooooooo...',
+          '...ookkkkookkkkoo...',
+          'ooooobboooooobbooooo',
+          'ooooobboooooobbooooo',
+          '...oobboooooobboob..',
+          '...bobboooooobboo...',
+          '...oobboooooobboo...',
+          '...oobbo....obboo...',
+          '...oo.oo....oo.oo...',
+          '...oo.oo....oo.oo...',
+        ] },
+        { id: 'clawd-angry', name: '生气', rows: [
+          '....................r.r.',
+          '...................rr.rr',
+          '........................',
+          '...oooooooooooooo..rr.rr',
+          '...okkoooooookkoo...r.r.',
+          '...oookkooookkooo.......',
+          'ooooookkooookkoooooo....',
+          'oooooooooooooooooooo....',
+          '...oooooooooooooo.......',
+          '...oooooooooooooo.......',
+          '...oooooooooooooo.......',
+          '...oo.oo....oo.oo.......',
+          '...oo.oo....oo.oo.......',
+          '...oo.oo....oo.oo.......',
+        ] },
+        { id: 'clawd-party', name: '庆祝', rows: [
+          '...........y...........y',
+          '.r.........b......b.....',
+          '..........bgb...........',
+          '..........ggg...........',
+          '....y....bbbbb.......r..',
+          '.........ggggg..g.......',
+          'b.......bbbbbbb.........',
+          '....oooooooooooooo......',
+          '....oooooooooooooo......',
+          '....oookkooookkooo......',
+          '.oooookookookookooooo...',
+          '.oooooooooooooooooooo...',
+          '....oppooooooooppo......',
+          '....oooooooooooooo......',
+          '....oooooooooooooo......',
+          '....oo.oo....oo.oo......',
+          '....oo.oo....oo.oo......',
+          '....oo.oo....oo.oo......',
+        ] },
+        { id: 'clawd-rocket', name: '发射', rows: [
+          '........................r...',
+          '.......................rrr..',
+          '.......................lwl..',
+          '......................lwwwl.',
+          '......................lwbwl.',
+          '......................lwwwl.',
+          '......................lwwwl.',
+          '.....................rlwwwlr',
+          '.....................rr.l.rr',
+          '...................oo..gyg..',
+          '...oooooooooooooo..oo...g...',
+          '...ooookkooookkoo..oo.......',
+          '...ooookkooookkoo..oo.......',
+          'ooooooooooooooooooooo.......',
+          'ooooooooooooooooooooo.......',
+          '...oooooooooooooo...........',
+          '...oooooooooooooo...........',
+          '...oooooooooooooo...........',
+          '...oo.oo....oo.oo...........',
+          '...oo.oo....oo.oo...........',
+          '...oo.oo....oo.oo...........',
+        ] },
+      ],
+    },
+    {
+      id: 'marvel',
+      kind: 'image',
+      name: 'Marvel',
+      tagline: '漫威电影标题',
+      note: '从《X战警》到《复仇者联盟5：毁灭之日》的 25 个电影标题。标题字需要地方，建议 3–4 块板宽。',
+      fineprint: '电影标题字样归 Marvel Studios / Disney 所有，这里只供个人手作参考。',
+      cover: ['iron-man', 'endgame', 'deadpool-and-wolverine'],
+      base: 'presets/marvel/',
+      // Applied when a title opens: metallic gradients need a few colours, textures need despeckling.
+      settings: { colors: 12, despeckle: true },
+      items: [
+        { id: 'x-men', name: 'X战警', en: 'X-Men', year: 2000, boards: 4 },
+        { id: 'x2', name: 'X战警2', en: 'X2: X-Men United', year: 2003, boards: 3 },
+        { id: 'x-men-the-last-stand', name: 'X战警3：背水一战', en: 'X-Men: The Last Stand', year: 2006, boards: 3 },
+        { id: 'iron-man', name: '钢铁侠', en: 'Iron Man', year: 2008, boards: 3 },
+        { id: 'captain-america', name: '美国队长', en: 'Captain America: The First Avenger', year: 2011, boards: 4 },
+        { id: 'the-avengers', name: '复仇者联盟', en: 'Marvel\'s The Avengers', year: 2012, boards: 3 },
+        { id: 'winter-soldier', name: '美国队长2', en: 'Captain America: The Winter Soldier', year: 2014, boards: 4 },
+        { id: 'days-of-future-past', name: 'X战警：逆转未来', en: 'X-Men: Days of Future Past', year: 2014, boards: 4 },
+        { id: 'guardians-of-the-galaxy', name: '银河护卫队', en: 'Guardians of the Galaxy', year: 2014, boards: 3 },
+        { id: 'logan', name: '金刚狼3：殊死一战', en: 'Logan', year: 2017, boards: 3 },
+        { id: 'thor-ragnarok', name: '雷神3：诸神黄昏', en: 'Thor: Ragnarok', year: 2017, boards: 3 },
+        { id: 'infinity-war', name: '复仇者联盟3：无限战争', en: 'Avengers: Infinity War', year: 2018, boards: 3 },
+        { id: 'endgame', name: '复仇者联盟4：终局之战', en: 'Avengers: Endgame', year: 2019, boards: 3 },
+        { id: 'black-widow', name: '黑寡妇', en: 'Black Widow', year: 2021, boards: 4 },
+        { id: 'shang-chi', name: '尚气与十环传奇', en: 'Shang-Chi and the Legend of the Ten Rings', year: 2021, boards: 3 },
+        { id: 'no-way-home', name: '蜘蛛侠：英雄无归', en: 'Spider-Man: No Way Home', year: 2021, boards: 3 },
+        { id: 'multiverse-of-madness', name: '奇异博士2：疯狂多元宇宙', en: 'Doctor Strange in the Multiverse of Madness', year: 2022, boards: 3 },
+        { id: 'wakanda-forever', name: '黑豹2', en: 'Black Panther: Wakanda Forever', year: 2022, boards: 3 },
+        { id: 'quantumania', name: '蚁人与黄蜂女：量子狂潮', en: 'Ant-Man and the Wasp: Quantumania', year: 2023, boards: 4 },
+        { id: 'deadpool-and-wolverine', name: '死侍与金刚狼', en: 'Deadpool & Wolverine', year: 2024, boards: 3 },
+        { id: 'brave-new-world', name: '美国队长4', en: 'Captain America: Brave New World', year: 2025, boards: 3 },
+        { id: 'thunderbolts', name: '雷霆特攻队*', en: 'Thunderbolts*', year: 2025, boards: 4 },
+        { id: 'fantastic-four', name: '神奇四侠：初露锋芒', en: 'The Fantastic Four: First Steps', year: 2025, boards: 3 },
+        { id: 'brand-new-day', name: '蜘蛛侠：崭新之日', en: 'Spider-Man: Brand New Day', year: 2026, boards: 3 },
+        { id: 'doomsday', name: '复仇者联盟5：毁灭之日', en: 'Avengers: Doomsday', year: 2026, boards: 3 },
       ],
     },
   ],

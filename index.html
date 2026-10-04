@@ -48,13 +48,12 @@
         <section class="gallery" id="gallery" aria-labelledby="galleryTitle">
           <div class="section-head">
             <div>
-              <p class="eyebrow">READY-MADE / CLAWD</p>
+              <p class="eyebrow">READY-MADE</p>
               <h2 id="galleryTitle">现成图纸</h2>
             </div>
-            <p class="section-note">Claude Code 里的小家伙 Clawd。每一张都放得进一块 29 × 29 的拼豆板，点开就能拼，也可以存成 PNG 当表情包。</p>
+            <p class="section-note">不用自己找素材：挑一套，点开就能拼。</p>
           </div>
-          <ul id="presetGrid" class="preset-grid"></ul>
-          <p class="fineprint">Clawd 是 Anthropic 为 Claude Code 设计的吉祥物。这里是爱好者画的像素版，非官方。</p>
+          <ul id="collectionGrid" class="collection-grid"></ul>
         </section>
 
         <ul class="features">
@@ -239,6 +238,20 @@
     </footer>
 
     <div id="dropOverlay" class="drop-overlay hidden" aria-hidden="true"><p>松开即可导入图片</p></div>
+    <dialog id="collectionSheet" class="sheet" aria-labelledby="sheetTitle">
+      <button class="sheet-close" type="button" aria-label="关闭">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
+      <div class="sheet-body">
+        <header class="sheet-head">
+          <p class="eyebrow" id="sheetEyebrow"></p>
+          <h2 id="sheetTitle"></h2>
+          <p class="sheet-note" id="sheetNote"></p>
+        </header>
+        <ul id="sheetGrid" class="preset-grid"></ul>
+        <p class="fineprint" id="sheetFine"></p>
+      </div>
+    </dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <div id="printRoot" class="print-root"></div>
     <input id="fileInput" type="file" accept="image/*" hidden />
