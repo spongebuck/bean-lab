@@ -195,7 +195,7 @@ const state = {
 
 /** Halve a canvas until the next halving would undershoot the target. One big
  *  drawImage downscale skips most source pixels and aliases; halving averages them. */
-function halveTowards(source, targetW, targetH) {
+function halveTowardsSmooth(source, targetW, targetH) {
   let current = source;
   while (current.width / 2 >= targetW && current.height / 2 >= targetH && current.width > 2 && current.height > 2) {
     const next = makeCanvas(current.width / 2, current.height / 2);
@@ -217,7 +217,7 @@ function toWorkingCanvas(image) {
   out.getContext('2d').drawImage(image, 0, 0, w, h);
   if (scale < 1) {
     const tw = Math.round(w * scale), th = Math.round(h * scale);
-    const halved = halveTowards(out, tw, th);
+    const halved = halveTowardsSmooth(out, tw, th);
     out = makeCanvas(tw, th);
     const ctx = out.getContext('2d');
     ctx.imageSmoothingQuality = 'high';
@@ -237,6 +237,9 @@ function drawFitted(source, W, H, fit) {
   const canvas = makeCanvas(W, H);
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.imageSmoothingQuality = 'high';
+  // Pixel art keeps hard edges: nearest-neighbour, and no smoothing halving steps.
+  ctx.imageSmoothingEnabled = !source.pixelArt;
+  const halveTowards = source.pixelArt ? (src) => src : halveTowardsSmooth;
   const sw = source.width, sh = source.height;
   if (fit === 'cover') {
     const scale = Math.max(W / sw, H / sh);
@@ -615,7 +618,7 @@ function buildPattern(source, o) {
     : brandPalette(merged, BRANDS[o.brand].colors, o.colors);
   const { entries } = picked;
   for (let i = 0; i < n; i++) if (bucketOf[i] >= 0) cells[i] = picked.assign[groupOf[bucketOf[i]]];
-  if (o.despeckle) despeckle(cells, width, height);
+  if (o.despeckle && !source.pixelArt) despeckle(cells, width, height);
   return finalizePattern(cells, entries, width, height, o.brand);
 }
 
@@ -1221,13 +1224,15 @@ function setSizeFromLongest(longest) {
   commitSize(w, h);
 }
 
-function commitSize(w, h) {
+function commitSize(w, h, { remember = true } = {}) {
   state.width = clamp(Math.round(w) || MIN_CELLS, MIN_CELLS, MAX_CELLS);
   state.height = clamp(Math.round(h) || MIN_CELLS, MIN_CELLS, MAX_CELLS);
   $('#gridWidth').value = state.width;
   $('#gridHeight').value = state.height;
-  state.settings.longest = Math.max(state.width, state.height);
-  saveSettings();
+  if (remember) {
+    state.settings.longest = Math.max(state.width, state.height);
+    saveSettings();
+  }
   syncPresets();
   updateStats();
 }
@@ -1264,7 +1269,7 @@ function syncControls() {
   $('#colorCount').value = s.colors;
   $('#colorValue').textContent = `${s.colors} 色`;
   $('#removeBg').checked = s.removeBg && !state.source?.cutout;
-  $('#despeckle').checked = s.despeckle;
+  $('#despeckle').checked = s.despeckle && !state.source?.pixelArt;
   $('#boardSize').value = s.boardSize;
   syncPresets();
   $('#showGrid').checked = s.showGrid;
@@ -1403,12 +1408,15 @@ async function loadImageFile(file) {
   }
 }
 
-function useImage(img, name, title) {
+/** Open an image in the workspace. Pixel art (the ready-made patterns) is sampled
+ *  with nearest-neighbour and starts at its own size, one cell per pixel. */
+function useImage(img, name, title, { pixelArt = false, size = null } = {}) {
   if (!(img.naturalWidth || img.width)) {
     toast('这张图片读不出来，试试 JPG 或 PNG');
     return;
   }
   state.source = toWorkingCanvas(img);
+  state.source.pixelArt = pixelArt;
   state.sourceName = name;
   state.title = title || name.replace(/\.[^.]+$/, '') || '我的拼豆图纸';
   state.adjust = { brightness: 0, contrast: 0, saturation: 0 };
@@ -1424,16 +1432,20 @@ function useImage(img, name, title) {
   $('#sourcePreview').src = thumb.toDataURL();
   $('#fileName').textContent = name;
   $('#fileName').title = name;
-  $('#sourceSize').textContent = `${img.naturalWidth || img.width} × ${img.naturalHeight || img.height} px`;
+  $('#sourceSize').textContent = `${img.naturalWidth || img.width} × ${img.naturalHeight || img.height} ${pixelArt ? '像素画' : 'px'}`;
   $('#patternTitle').value = state.title;
   $('#removeBg').disabled = state.source.cutout;
   $('#removeBg').checked = state.settings.removeBg && !state.source.cutout;
   $('#removeBgHint').textContent = state.source.cutout
     ? '这张图自带透明背景，背景已经留空了。'
     : '与边缘相连的单一底色（比如白底）不放豆。透明区域始终留空。';
+  $('#despeckle').disabled = pixelArt;
+  $('#despeckle').checked = state.settings.despeckle && !pixelArt;
+  $('#despeckleHint').textContent = pixelArt ? '像素画每一颗都是画好的，不需要清理。' : '把孤零零的单颗豆子并入周围的颜色。';
 
   syncAdjust();
-  setSizeFromLongest(state.settings.longest);
+  if (size) commitSize(size[0], size[1], { remember: false });
+  else setSizeFromLongest(state.settings.longest);
   showWorkspace();
   generate();
 }
@@ -1442,7 +1454,7 @@ function showWorkspace() {
   $('#landing').classList.add('hidden');
   $('#workspace').classList.remove('hidden');
   document.body.classList.add('in-workspace');
-  window.scrollTo({ top: 0 });
+  window.scrollTo({ top: 0, behavior: 'instant' });
   requestAnimationFrame(resizeViewer);
 }
 
@@ -1453,35 +1465,96 @@ function showLanding() {
   const resume = $('#resumeButton');
   resume.classList.toggle('hidden', !state.source);
   $('#resumeName').textContent = state.title;
-  window.scrollTo({ top: 0 });
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
-// Drawn with bead sizes in mind: outlines and features are at least ~1.5 cells wide
-// at 29 cells, so the sample stays crisp at the smallest preset.
-const SAMPLE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 200 200">
-  <path d="M70 108 Q64 162 77 181 Q100 193 123 181 Q136 162 130 108 Z" fill="#f6e5c8" stroke="#3b2a26" stroke-width="11" stroke-linejoin="round"/>
-  <path d="M14 112 C14 52 55 16 100 16 C145 16 186 52 186 112 C186 125 177 131 165 131 L35 131 C23 131 14 125 14 112 Z" fill="#e0453a" stroke="#3b2a26" stroke-width="11" stroke-linejoin="round"/>
-  <circle cx="60" cy="66" r="17" fill="#fff7ec"/>
-  <circle cx="115" cy="43" r="13" fill="#fff7ec"/>
-  <circle cx="148" cy="90" r="16" fill="#fff7ec"/>
-  <circle cx="96" cy="98" r="10" fill="#fff7ec"/>
-  <circle cx="87" cy="153" r="8" fill="#3b2a26"/>
-  <circle cx="113" cy="153" r="8" fill="#3b2a26"/>
-  <ellipse cx="100" cy="171" rx="9" ry="5" fill="#ef8e8a"/>
-</svg>`;
+// ---------------------------------------------------------------------------
+// Ready-made patterns (data in presets.js)
+// ---------------------------------------------------------------------------
 
-let samplePromise = null;
-function loadSample() {
-  if (!samplePromise) {
-    const url = URL.createObjectURL(new Blob([SAMPLE_SVG], { type: 'image/svg+xml' }));
-    samplePromise = decodeImage(url);
+const PRESETS = (window.BEAD_PRESETS?.collections || []).flatMap((collection) =>
+  collection.items.map((item) => ({
+    ...item,
+    collection: collection.name,
+    palette: window.BEAD_PRESETS.palette,
+    width: item.rows[0].length,
+    height: item.rows.length,
+    beads: item.rows.join('').replace(/\./g, '').length,
+    colors: new Set(item.rows.join('').replace(/\./g, '')).size,
+  })),
+);
+
+/** The preset drawn at `scale` px per cell; '.' stays transparent. */
+function presetCanvas(preset, scale = 1) {
+  const canvas = makeCanvas(preset.width * scale, preset.height * scale);
+  const ctx = canvas.getContext('2d');
+  preset.rows.forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      if (!preset.palette[ch]) return;
+      ctx.fillStyle = preset.palette[ch];
+      ctx.fillRect(x * scale, y * scale, scale, scale);
+    });
+  });
+  return canvas;
+}
+
+function openPreset(preset) {
+  // Show the drawing as designed: never fewer colour slots than it uses.
+  if (state.settings.colors < preset.colors) {
+    state.settings.colors = preset.colors;
+    saveSettings();
+    syncControls();
   }
-  return samplePromise;
+  const title = `${preset.collection} · ${preset.name}`;
+  useImage(presetCanvas(preset), `${title}.png`, title, { pixelArt: true, size: [preset.width, preset.height] });
+}
+
+function downloadPreset(preset) {
+  presetCanvas(preset, 24).toBlob((blob) => {
+    if (blob) saveBlob(blob, `${preset.id}.png`);
+  }, 'image/png');
+}
+
+function renderPresets() {
+  const grid = $('#presetGrid');
+  if (!PRESETS.length) {
+    $('#gallery').classList.add('hidden');
+    return;
+  }
+  // One scale for every card, so Clawd is the same size in all of them.
+  const widest = Math.max(...PRESETS.map((p) => p.width));
+  grid.replaceChildren(...PRESETS.map((preset) => {
+    const item = document.createElement('li');
+    item.className = 'preset-card';
+    item.innerHTML = `
+      <button class="preset-open" type="button" aria-label="打开 ${escapeHtml(preset.collection)} ${escapeHtml(preset.name)}">
+        <span class="preset-art"></span>
+        <span class="preset-meta"><b>${escapeHtml(preset.name)}</b><span>${preset.width}&nbsp;×&nbsp;${preset.height} · ${fmt(preset.beads)}&nbsp;颗</span></span>
+      </button>
+      <button class="preset-download" type="button" aria-label="下载 ${escapeHtml(preset.name)} PNG"><span>PNG </span>↓</button>`;
+    const art = presetCanvas(preset);
+    art.style.width = `${(preset.width / widest) * 76}%`;
+    $('.preset-art', item).append(art);
+    $('.preset-open', item).addEventListener('click', () => openPreset(preset));
+    $('.preset-download', item).addEventListener('click', () => downloadPreset(preset));
+    return item;
+  }));
 }
 
 // ---------------------------------------------------------------------------
 // Output: PNG sheet, print pages, shopping list
 // ---------------------------------------------------------------------------
+
+function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
 
 function safeFileName(text) {
   return (text || '拼豆图纸').replace(/[\\/:*?"<>|]+/g, '-').trim().slice(0, 60) || '拼豆图纸';
@@ -1609,14 +1682,7 @@ async function downloadPng() {
         toast('图纸太大，导出失败。试试小一点的尺寸');
         return;
       }
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${safeFileName(state.title)}-拼豆图纸.png`;
-      document.body.append(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      saveBlob(blob, `${safeFileName(state.title)}-拼豆图纸.png`);
       toast('图纸已下载');
     }, 'image/png');
   } catch {
@@ -1826,16 +1892,15 @@ function animateHero(now) {
   if (drawHero(now)) hero.frame = requestAnimationFrame(animateHero);
 }
 
-async function initHero() {
-  try {
-    const img = await loadSample();
-    hero.pattern = buildPattern(toWorkingCanvas(img), {
-      width: 26, height: 26, fit: 'contain', adjust: { brightness: 0, contrast: 0, saturation: 0 },
-      brand: BRANDS.mard ? 'mard' : 'free', colors: 10, removeBg: false, despeckle: true,
-    });
-  } catch {
-    return;
-  }
+function initHero() {
+  const preset = PRESETS.find((p) => p.id === 'clawd-hello') || PRESETS[0];
+  if (!preset) return;
+  const source = toWorkingCanvas(presetCanvas(preset));
+  source.pixelArt = true;
+  hero.pattern = buildPattern(source, {
+    width: preset.width, height: preset.height, fit: 'contain', adjust: { brightness: 0, contrast: 0, saturation: 0 },
+    brand: BRANDS.mard ? 'mard' : 'free', colors: preset.colors, removeBg: false, despeckle: false,
+  });
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   hero.start = performance.now() - (reduced ? 1e6 : -150);
   hero.frame = requestAnimationFrame(animateHero);
@@ -1880,13 +1945,6 @@ function bindControls() {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#fileInput').click(); }
   });
   $('#newImage').addEventListener('click', () => $('#fileInput').click());
-  $('#trySample').addEventListener('click', async () => {
-    try {
-      useImage(await loadSample(), '小蘑菇（示例）.svg', '小蘑菇');
-    } catch {
-      toast('示例图加载失败');
-    }
-  });
   $('#resumeButton').addEventListener('click', showWorkspace);
   $('#brandLink').addEventListener('click', (e) => {
     if (!document.body.classList.contains('in-workspace')) return;
@@ -2065,6 +2123,7 @@ function bindGlobal() {
 // ---------------------------------------------------------------------------
 
 populateBrands();
+renderPresets();
 syncControls();
 $('#hoverInfo').textContent = HOVER_HINT;
 bindControls();

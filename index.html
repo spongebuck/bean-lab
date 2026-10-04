@@ -34,7 +34,7 @@
             <p class="intro">上传一张图片，选好尺寸和色卡，得到一份带真实色号、可以按拼豆板一页页照着拼的图纸。</p>
             <div class="hero-actions">
               <label class="button button-primary" for="fileInput" tabindex="0" id="chooseButton">选择图片 <span aria-hidden="true">→</span></label>
-              <button class="button button-quiet" id="trySample" type="button">试试示例图</button>
+              <a class="button button-quiet" href="#gallery">挑一张现成的 <span aria-hidden="true">↓</span></a>
             </div>
             <p class="hint">也可以把图片拖进页面，或直接粘贴（⌘V / Ctrl+V）。图片只在你的浏览器里处理。</p>
             <button id="resumeButton" class="resume hidden" type="button">继续编辑 <b id="resumeName"></b> <span aria-hidden="true">→</span></button>
@@ -44,6 +44,18 @@
             <p class="hero-art-caption">Drop an image here</p>
           </div>
         </div>
+
+        <section class="gallery" id="gallery" aria-labelledby="galleryTitle">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">READY-MADE / CLAWD</p>
+              <h2 id="galleryTitle">现成图纸</h2>
+            </div>
+            <p class="section-note">Claude Code 里的小家伙 Clawd。每一张都放得进一块 29 × 29 的拼豆板，点开就能拼，也可以存成 PNG 当表情包。</p>
+          </div>
+          <ul id="presetGrid" class="preset-grid"></ul>
+          <p class="fineprint">Clawd 是 Anthropic 为 Claude Code 设计的吉祥物。这里是爱好者画的像素版，非官方。</p>
+        </section>
 
         <ul class="features">
           <li class="feature">
@@ -114,7 +126,7 @@
               <input type="checkbox" id="removeBg" class="switch" />
             </label>
             <label class="switch-row">
-              <span>清理杂点<small>把孤零零的单颗豆子并入周围的颜色。</small></span>
+              <span>清理杂点<small id="despeckleHint">把孤零零的单颗豆子并入周围的颜色。</small></span>
               <input type="checkbox" id="despeckle" class="switch" />
             </label>
           </section>
@@ -232,6 +244,7 @@
     <input id="fileInput" type="file" accept="image/*" hidden />
 
     <script src="palettes.js"></script>
+    <script src="presets.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
