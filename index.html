@@ -2,98 +2,236 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Saul's Bean Lab</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Saul's Bean Lab · 拼豆图纸生成器</title>
+    <meta name="description" content="把任意图片变成可以照着拼的拼豆图纸：匹配 MARD、Perler、Hama、Artkal 真实色号，按拼豆板 1:1 分页打印。图片只在你的浏览器里处理。" />
+    <meta name="theme-color" content="#faf9f6" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Saul's Bean Lab" />
+    <meta property="og:description" content="把图片变成带真实色号、可以按板打印的拼豆图纸。" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://imsaul.lol" crossorigin />
     <link rel="stylesheet" href="style.css" />
-    <style>
-      .canvas-wrap { display: block; }
-      .canvas-wrap.is-panning { cursor: grabbing; user-select: none; }
-      .canvas-wrap:has(canvas[style*="width"]) { cursor: grab; }
-      .canvas-stage { min-width: 100%; min-height: 100%; display: grid; place-items: center; }
-      .canvas-wrap canvas { max-width: none; max-height: none; }
-      .zoom-controls span { min-width: 40px; text-align: center; cursor: pointer; }
-      /* The blog's three radii: small controls, grouped controls, and media. */
-      .upload-button, .primary, .secondary, .zoom-controls button,
-      .dimension-row input, .source-preview img { border-radius: 8px; }
-      .size-choice { overflow: hidden; border-radius: 8px; }
-      .size-option, .size-option:last-child { border-radius: 0; }
-      .canvas-wrap { border-radius: 24px; }
-      .hero-art { border-radius: 24px; }
-      .board-estimate { border-radius: 12px; }
-      .bead-total { border-radius: 8px; }
-      .toast { border-radius: 8px; }
-    </style>
   </head>
   <body>
-    <header class="topbar">
-      <a class="brand" href="#">S<span class="logo-mid">aul's Bean La</span>b</a>
-      <p>Pixel patterns for things worth making.</p>
+    <a class="skip-link" href="#main">跳到正文</a>
+
+    <header class="topbar" id="topbar">
+      <a class="brand" href="./" id="brandLink" aria-label="Saul's Bean Lab 首页">S<span class="logo-mid">aul's Bean La</span>b</a>
+      <nav class="topnav" aria-label="站点">
+        <span class="tagline">Pixel patterns for things worth making.</span>
+        <a href="https://imsaul.lol" target="_blank" rel="noopener">Blog <span aria-hidden="true">↗</span></a>
+      </nav>
     </header>
 
-    <main>
-      <section id="emptyState" class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">SAUL'S BEAN LAB / 01</p>
-          <h1>Turn an image into<br />something you can make.</h1>
-          <p class="intro">上传图片，设置尺寸与颜色数量，然后把它变成一份可以真正照着完成的拼豆图纸。</p>
-          <label class="upload-button" for="fileInput">Choose an image <span>→</span></label>
-          <input id="fileInput" type="file" accept="image/*" hidden />
-          <p class="hint">支持 JPG、PNG、WEBP · 图片只在你的浏览器中处理</p>
+    <main id="main">
+      <!-- Landing ---------------------------------------------------------- -->
+      <section id="landing" class="landing">
+        <div class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">SAUL'S BEAN LAB / 01</p>
+            <h1>Turn an image into something you can make.</h1>
+            <p class="intro">上传一张图片，选好尺寸和色卡，得到一份带真实色号、可以按拼豆板一页页照着拼的图纸。</p>
+            <div class="hero-actions">
+              <label class="button button-primary" for="fileInput" tabindex="0" id="chooseButton">选择图片 <span aria-hidden="true">→</span></label>
+              <button class="button button-quiet" id="trySample" type="button">试试示例图</button>
+            </div>
+            <p class="hint">也可以把图片拖进页面，或直接粘贴（⌘V / Ctrl+V）。图片只在你的浏览器里处理。</p>
+            <button id="resumeButton" class="resume hidden" type="button">继续编辑 <b id="resumeName"></b> <span aria-hidden="true">→</span></button>
+          </div>
+          <div id="dropZone" class="hero-art" role="button" tabindex="0" aria-label="选择或拖入一张图片">
+            <canvas id="heroCanvas" aria-hidden="true"></canvas>
+            <p class="hero-art-caption">Drop an image here</p>
+          </div>
         </div>
-        <div id="dropZone" class="hero-art" role="button" tabindex="0" aria-label="上传图片">
-          <div class="checker-art"><span></span><span></span><span></span><span></span><span></span></div>
-          <div class="bead bead-coral"></div><div class="bead bead-yellow"></div><div class="bead bead-blue"></div><div class="bead bead-green"></div>
-          <p>Drop an image here</p>
-        </div>
+
+        <ul class="features">
+          <li class="feature">
+            <p class="eyebrow">01 / COLOURS</p>
+            <h3>真实色号</h3>
+            <p>匹配 MARD、Perler、Hama、Artkal 的色卡。材料清单上的色号和数量，就是你的购物清单。</p>
+          </li>
+          <li class="feature">
+            <p class="eyebrow">02 / PRINT</p>
+            <h3>按板分页，1:1 打印</h3>
+            <p>每块拼豆板一页，按实物尺寸打印。垫在透明拼豆板下面，照着格子放豆子就行。</p>
+          </li>
+          <li class="feature">
+            <p class="eyebrow">03 / PRIVATE</p>
+            <h3>只在本地处理</h3>
+            <p>图片不会离开你的浏览器：没有上传，没有账号，关掉页面就什么都不剩。</p>
+          </li>
+        </ul>
       </section>
 
-      <section id="workspace" class="workspace hidden">
-        <aside class="controls">
-          <div class="panel-title"><div><p class="eyebrow">YOUR PATTERN</p><h2>图纸设置</h2></div><button id="newImage" class="text-button">换张图片</button></div>
+      <!-- Workspace -------------------------------------------------------- -->
+      <section id="workspace" class="workspace hidden" aria-label="图纸工作台">
+        <aside class="panel controls" aria-label="图纸设置">
+          <div class="panel-head">
+            <div><p class="eyebrow">YOUR PATTERN</p><h2>图纸设置</h2></div>
+          </div>
 
-          <div class="source-preview"><img id="sourcePreview" alt="原图预览" /><div><strong id="fileName">图片</strong><button id="cropButton" class="text-button">查看适配方式</button></div></div>
+          <div class="source">
+            <img id="sourcePreview" alt="原图" />
+            <div class="source-meta"><strong id="fileName">图片</strong><span id="sourceSize" class="mono"></span></div>
+            <button id="newImage" class="link-button" type="button">换一张</button>
+          </div>
 
-          <fieldset>
-            <legend>图纸大小 <span>预设或自定义</span></legend>
-            <div class="size-choice">
-              <button class="size-option selected" data-size="small"><b>小</b><span>最长边 30 格</span></button>
-              <button class="size-option" data-size="medium"><b>中</b><span>最长边 50 格</span></button>
-              <button class="size-option" data-size="large"><b>大</b><span>最长边 80 格</span></button>
+          <section class="group" aria-labelledby="sizeTitle">
+            <h3 class="group-title" id="sizeTitle">尺寸 <span id="physicalSize" class="group-note"></span></h3>
+            <div class="segmented segmented-tall" role="group" aria-label="尺寸预设" id="sizePresets">
+              <button type="button" data-boards="1"><b>小</b><span>29 格</span></button>
+              <button type="button" data-boards="2"><b>中</b><span>58 格</span></button>
+              <button type="button" data-boards="3"><b>大</b><span>87 格</span></button>
             </div>
-            <div class="dimension-row"><label>宽 <input id="gridWidth" type="number" min="5" max="500" value="30" /></label><span>×</span><label>高 <input id="gridHeight" type="number" min="5" max="500" value="30" /></label><button id="lockRatio" class="lock" aria-label="锁定比例" title="锁定比例">⌁</button></div>
-            <p class="field-hint">三个尺寸只是建议。也可直接输入尺寸（最大 500 格）；图片会完整保留并自动留出安全边距。成品约 <strong id="physicalSize">15 × 15 cm</strong>（按 5 mm 拼豆计算）</p>
-          </fieldset>
+            <div class="dimensions">
+              <label>宽<input id="gridWidth" type="number" inputmode="numeric" min="5" max="500" value="30" /></label>
+              <button id="lockRatio" class="lock" type="button" aria-pressed="true" title="锁定原图比例" aria-label="锁定原图比例">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1" /><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" /></svg>
+              </button>
+              <label>高<input id="gridHeight" type="number" inputmode="numeric" min="5" max="500" value="30" /></label>
+            </div>
+            <div class="segmented" role="group" aria-label="适配方式" id="fitMode">
+              <button type="button" data-fit="contain">完整显示</button>
+              <button type="button" data-fit="cover">裁切填满</button>
+            </div>
+          </section>
 
-          <fieldset>
-            <legend>颜色数量 <span id="colorValue">16 色</span></legend>
-            <input id="colorCount" class="range" type="range" min="4" max="36" step="2" value="16" />
-            <div class="range-labels"><span>简洁</span><span>细腻</span></div>
-          </fieldset>
+          <section class="group" aria-labelledby="colorTitle">
+            <h3 class="group-title" id="colorTitle"><label for="brand">色卡</label></h3>
+            <div class="select"><select id="brand"></select></div>
+            <div class="range-field">
+              <div class="range-head"><label for="colorCount">最多用几种颜色</label><output id="colorValue" for="colorCount">16 色</output></div>
+              <input id="colorCount" type="range" min="2" max="48" step="1" value="16" />
+              <div class="range-labels"><span>简洁</span><span>细腻</span></div>
+            </div>
+          </section>
 
-          <fieldset>
-            <legend>显示方式</legend>
-            <div class="toggle-row"><span>网格线</span><input id="gridLines" type="checkbox" checked /></div>
-            <div class="toggle-row"><span>颜色编号</span><input id="numbers" type="checkbox" checked /></div>
-          </fieldset>
-          <button id="generate" class="primary">生成图纸 <span>→</span></button>
+          <section class="group" aria-labelledby="cleanTitle">
+            <h3 class="group-title" id="cleanTitle">清理</h3>
+            <label class="switch-row">
+              <span>去除纯色背景<small id="removeBgHint">与边缘相连的单一底色（比如白底）不放豆。透明区域始终留空。</small></span>
+              <input type="checkbox" id="removeBg" class="switch" />
+            </label>
+            <label class="switch-row">
+              <span>清理杂点<small>把孤零零的单颗豆子并入周围的颜色。</small></span>
+              <input type="checkbox" id="despeckle" class="switch" />
+            </label>
+          </section>
+
+          <details class="group" id="adjustGroup">
+            <summary class="group-title">图像调整 <span id="adjustNote" class="group-note"></span></summary>
+            <div class="range-field">
+              <div class="range-head"><label for="brightness">亮度</label><output id="brightnessValue" for="brightness">0</output></div>
+              <input id="brightness" type="range" min="-50" max="50" step="1" value="0" data-adjust />
+            </div>
+            <div class="range-field">
+              <div class="range-head"><label for="contrast">对比度</label><output id="contrastValue" for="contrast">0</output></div>
+              <input id="contrast" type="range" min="-50" max="50" step="1" value="0" data-adjust />
+            </div>
+            <div class="range-field">
+              <div class="range-head"><label for="saturation">饱和度</label><output id="saturationValue" for="saturation">0</output></div>
+              <input id="saturation" type="range" min="-50" max="50" step="1" value="0" data-adjust />
+            </div>
+            <button id="resetAdjust" class="link-button" type="button">恢复原样</button>
+          </details>
+
+          <section class="group" aria-labelledby="specTitle">
+            <h3 class="group-title" id="specTitle">规格</h3>
+            <div class="field-row">
+              <span>豆子</span>
+              <div class="segmented segmented-inline" role="group" aria-label="豆子尺寸" id="beadSize">
+                <button type="button" data-bead="5">5 mm</button>
+                <button type="button" data-bead="2.6">2.6 mm</button>
+              </div>
+            </div>
+            <div class="field-row">
+              <label for="boardSize">拼豆板</label>
+              <span class="unit-input"><input id="boardSize" type="number" inputmode="numeric" min="10" max="100" value="29" /><span>格 / 边</span></span>
+            </div>
+          </section>
         </aside>
 
-        <section class="pattern-area">
-          <div class="pattern-header"><div><p class="eyebrow">READY TO MAKE</p><h2 id="patternTitle">我的拼豆图纸</h2></div><div class="zoom-controls"><button id="zoomOut" aria-label="缩小">−</button><span id="zoomPercent">100%</span><button id="zoomIn" aria-label="放大">+</button></div></div>
-          <div class="canvas-wrap"><div class="canvas-stage"><canvas id="patternCanvas" width="800" height="800"></canvas></div></div>
+        <section class="stage" aria-label="图纸">
+          <div class="stage-head">
+            <div class="stage-title">
+              <p class="eyebrow">READY TO MAKE</p>
+              <input id="patternTitle" class="title-input" aria-label="图纸名称（可编辑）" maxlength="60" spellcheck="false" />
+            </div>
+            <div class="stage-tools">
+              <div class="segmented segmented-inline" role="group" aria-label="显示方式" id="viewMode">
+                <button type="button" data-view="chart">图纸</button>
+                <button type="button" data-view="beads">效果</button>
+              </div>
+              <div class="zoom" role="group" aria-label="缩放">
+                <button id="zoomOut" type="button" aria-label="缩小">−</button>
+                <button id="zoomReset" class="zoom-value" type="button" title="适应窗口（0）">100%</button>
+                <button id="zoomIn" type="button" aria-label="放大">+</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="chips" role="group" aria-label="图纸显示">
+            <label class="chip"><input type="checkbox" id="showGrid" /> 网格线</label>
+            <label class="chip"><input type="checkbox" id="showCodes" /> 色号</label>
+            <label class="chip"><input type="checkbox" id="showBoards" /> 拼豆板分界</label>
+          </div>
+
+          <div id="viewer" class="viewer" tabindex="0" role="img" aria-label="拼豆图纸预览">
+            <canvas id="patternCanvas"></canvas>
+            <div id="viewerEmpty" class="viewer-empty hidden">这张图全部被当成了背景。<br />试试关掉「去除纯色背景」。</div>
+            <div id="viewerBusy" class="viewer-busy hidden">正在生成…</div>
+          </div>
+
+          <div class="stage-status">
+            <span id="hoverInfo" class="hover-info mono">把鼠标移到图纸上查看坐标</span>
+            <span id="highlightInfo" class="highlight-info hidden"><i id="highlightSwatch"></i><span id="highlightText"></span><button id="clearHighlight" class="link-button" type="button">清除</button></span>
+            <span class="stage-hint">拖动平移 · ⌘/Ctrl + 滚轮缩放 · 点击格子高亮同色</span>
+          </div>
         </section>
 
-        <aside class="materials">
-          <div class="panel-title"><div><p class="eyebrow">MATERIALS</p><h2>材料清单</h2></div><span id="totalBeads" class="bead-total">0 颗</span></div>
-          <p class="materials-intro">按照编号放豆子，每放完一格就在图纸上划掉它。</p>
-          <div class="board-estimate"><span>拼豆板估算</span><strong id="boardEstimate">—</strong><small>按常见 29 × 29 格拼豆板</small></div>
+        <aside class="panel materials" aria-label="材料清单">
+          <div class="panel-head">
+            <div><p class="eyebrow">MATERIALS</p><h2>材料清单</h2></div>
+            <span id="totalBeads" class="pill">0 颗</span>
+          </div>
+
+          <dl class="stats">
+            <div><dt>图纸</dt><dd id="statGrid">—</dd></div>
+            <div><dt>成品</dt><dd id="statSize">—</dd></div>
+            <div><dt>拼豆板</dt><dd id="statBoards">—</dd></div>
+            <div><dt>颜色</dt><dd id="statColors">—</dd></div>
+          </dl>
+
+          <div id="progress" class="progress hidden">
+            <div class="progress-head"><span>进度</span><span id="progressText" class="mono"></span></div>
+            <div class="progress-bar"><i id="progressBar"></i></div>
+          </div>
+
+          <p class="materials-hint">点一下颜色，图纸上只突出它；拼完一种就把它勾掉。</p>
           <ol id="paletteList" class="palette-list"></ol>
-          <div class="action-stack"><button id="downloadPng" class="primary">下载图纸 PNG <span>↓</span></button><button id="printPattern" class="secondary">打印图纸</button></div>
+
+          <div class="actions">
+            <button id="downloadPng" class="button button-primary" type="button">下载图纸 PNG <span aria-hidden="true">↓</span></button>
+            <button id="printPattern" class="button button-secondary" type="button">按板分页打印 <span aria-hidden="true">→</span></button>
+            <button id="copyList" class="link-button" type="button">复制材料清单</button>
+          </div>
         </aside>
       </section>
     </main>
-    <footer><span>SAUL'S BEAN LAB</span><span>Made for making things slowly.</span><a href="https://imsaul.lol" target="_blank" rel="noreferrer">imsaul.lol ↗</a></footer>
-    <div id="toast" class="toast" role="status"></div>
+
+    <footer class="footer">
+      <span class="footer-mark">SAUL'S BEAN LAB</span>
+      <span>Made for making things slowly.</span>
+      <a href="https://imsaul.lol" target="_blank" rel="noopener">imsaul.lol ↗</a>
+    </footer>
+
+    <div id="dropOverlay" class="drop-overlay hidden" aria-hidden="true"><p>松开即可导入图片</p></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="printRoot" class="print-root"></div>
+    <input id="fileInput" type="file" accept="image/*" hidden />
+
+    <script src="palettes.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
